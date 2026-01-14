@@ -101,7 +101,7 @@ BASE_IMAGE_URL = "https://res.cloudinary.com/dl5h1i0up/image/upload/w_500,h_500,
 def product_link(row: dict) -> str:
     return (
         f"{BASE_PRODUCT_URL}"
-        f"?producto={slugify(row['Descripcion'])}"
+        f"?producto={slugify.slugify(row['Descripcion'])}"
         f"&tipo={row['Tipo'].lower()}"
         f"&id={row['Id']}"
     )
@@ -225,7 +225,7 @@ def fetch_rows_to_csv(conn, directory: str) -> None:
 def main() -> None:
     load_dotenv()
     
-    directory = "filtered_sql_catalog_export.csv"
+    directory = "CSV/filtered_sql_catalog_export.csv"
 
     conn = pymssql.connect(
         server=os.getenv("SCS_DB01_HOST"),

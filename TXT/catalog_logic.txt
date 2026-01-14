@@ -1,11 +1,3 @@
-# def format_csv_row(row: dict) -> dict:
-#     """
-#     Format a database row for CSV output.
-#     Args:
-#         row (dict): Database row
-#     Returns:
-#         dict: Formatted row
-#     """
 #     fb_catalog_columns = {
 #         "id": 1, # A unique content ID for the item. Use the item's SKU if you can. Each content ID must appear only once in your catalog. To run dynamic ads this ID must exactly match the content ID for the same item in your Meta Pixel code. Character limit: 100
 #         "title": 1, # A specific and relevant title for the item. See title specifications: https://www.facebook.com/business/help/2104231189874655 Character limit: 200
@@ -36,36 +28,4 @@
 #         "[product_tags][0]": 0, # Add labels to products to help filter them into product sets. Max characters: 110 per label; 5000 labels per product. 
 #         "[product_tags][1]": 0, #  Add labels to products to help filter them into product sets. Max characters: 110 per label; 5000 labels per product. 
 #         "[style][0]": 0, # Describe the fashion style of this item.
-#     }
-    
-#     fb_catalog_rows = {
-#         "id": [], 
-#         "title": [], 
-#         "description": [], 
-#         "availability": [], 
-#         "condition": [], 
-#         "price": [], 
-#         "link": [], 
-#         "image_link": [], 
-#         "brand": [], 
-#         "google_product_category": [], 
-#         "fb_product_category": [], 
-#         "quantity_to_sell_on_facebook": [], 
-#         "sale_price": [], 
-#         "sale_price_effective_date": [], 
-#         "item_group_id": [], 
-#         "gender": [], 
-#         "color": [], 
-#         "size": [], 
-#         "age_group": [], 
-#         "material": [], 
-#         "pattern": [], 
-#         "shipping": [], 
-#         "shipping_weight": [], 
-#         "[video][0].url]": [], 
-#         "[video][0].tag[0]": [], 
-#         "[gtin]": [], 
-#         "[product_tags][0]": [], 
-#         "[product_tags][1]": [], 
-#         "[style][0]": [], 
 #     }
