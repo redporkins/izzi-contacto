@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Solicitar servicio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #f7f7f7;
+        padding: 40px;
+      }
+      .card {
+        max-width: 500px;
+        background: #fff;
+        padding: 24px;
+        margin: auto;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        text-align: center;
+      }
+      h1 {
+        font-size: 22px;
+      }
+      p {
+        margin: 16px 0;
+      }
+      a.button {
+        display: flex;
+        align-items: center; /* vertical alignment */
+        justify-content: center; /* horizontal centering */
+        gap: 16px; /* space between icon and text */
+
+        margin: 16px 0;
+        padding: 18px;
+        background: #25d366;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 12px;
+        font-size: 30px;
+      }
+      a.call {
+        background: #1877f2;
+      }
+      .icon {
+        width: 60px;
+        height: 40px;
+        object-fit: contain;
+        display: block;
+      }
+      .logo {
+        width: 400px; /* adjust as needed */
+        max-width: 80%; /* keeps it responsive */
+        height: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Solicitar información</h1>
+      <img src="Images/logoIzzi.png" alt="Logo Izzi" class="logo" />
+      <p id="producto">Cargando servicio...</p>
+
+      <!-- <a id="whatsapp" class="button" href="#">📲 WhatsApp</a>
+      <a id="call" class="button call" href="#">📞 Llamar</a> -->
+      <a id="whatsapp" class="button" href="#">
+        <img src="Images/whatsApp.png" alt="WhatsApp icon" class="icon" />
+        <span>WhatsApp</span>
+      </a>
+
+      <a id="call" class="button call" href="#">
+        <!-- <img src="phone.png" alt="Call icon" class="icon" /> -->
+        <img src="Images/phone.png" alt="Phone icon" class="icon" />
+        <span>Llamar</span>
+      </a>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const producto = params.get("producto") || "nuestros servicios";
+      const tipo = params.get("tipo") || "";
+      const id = params.get("id") || "";
+
+      document.getElementById(
+        "producto"
+      ).innerText = `Servicio seleccionado: ${producto.replace(/-/g, " ")}`;
+
+      const callcenter = "525594357080"; // Número de call center
+      const whatsApp = "+5218120011803"; // Número de WhatsApp
+
+      const message = encodeURIComponent(
+        `Hola, quiero información sobre el servicio: ${producto}`
+      );
+
+      document.getElementById(
+        "whatsapp"
+      ).href = `https://wa.me/${whatsApp}?text=${message}`;
+
+      document.getElementById("call").href = `tel:+${callcenter}`;
+    </script>
+  </body>
+</html>

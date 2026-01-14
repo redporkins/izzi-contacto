@@ -1,0 +1,26 @@
+{
+  "data": [
+    {
+      "event_name": "Lead",
+      "event_time": 1764780314,
+      "action_source": "system_generated",
+      "user_data": {
+        "em": "7b17fb0bd173f625b58636fb796407c22b3d16fc78302d79f0fd30c2fc2fc068",
+        "ph": "d36e83082288d9f2c98b3f3f87cd317a31e95527cb09972090d3456a7430ad4d",
+        "lead_id": 1234567890123456,
+        "fbc": null
+      },
+      "attribution_data": {
+        "attribution_share": "0.3"
+      },
+      "custom_data": {
+        "lead_event_source": "Your CRM",
+        "event_source": "crm"
+      },
+      "original_event_data": {
+        "event_name": "Purchase",
+        "event_time": 1764780314
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# Ignore environment variable files
+
+# Environment file
+.env
+
+# Postman JSON metadata files
+JSON/collection_meta.json
+JSON/environment_meta.json
+
+# CSV sensitive data files
+CSV/filtered_sql_sales_export.csv
+CSV/filtered_tiktok_export.csv
+CSV/tiktok_export.csv
