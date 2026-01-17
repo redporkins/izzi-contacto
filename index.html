@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
   <head>
     <!-- Meta Pixel Code -->
@@ -24,7 +24,7 @@
         window,
         document,
         "script",
-        "https://connect.facebook.net/en_US/fbevents.js"
+        "https://connect.facebook.net/en_US/fbevents.js",
       );
       fbq("init", "777472967223169");
       fbq("track", "PageView");
@@ -117,22 +117,78 @@
       const tipo = params.get("tipo") || "";
       const id = params.get("id") || "";
 
-      document.getElementById(
-        "producto"
-      ).innerText = `Servicio seleccionado: ${producto.replace(/-/g, " ")}`;
+      document.getElementById("producto").innerText =
+        `Servicio seleccionado: ${producto.replace(/-/g, " ")}`;
 
       const callcenter = "525594357080"; // Número de call center
       const whatsApp = "+5218120011803"; // Número de WhatsApp
 
       const message = encodeURIComponent(
-        `Hola, quiero información sobre el servicio: ${producto}`
+        `Hola, quiero información sobre el servicio: ${producto}`,
       );
 
-      document.getElementById(
-        "whatsapp"
-      ).href = `https://wa.me/${whatsApp}?text=${message}`;
+      document.getElementById("whatsapp").href =
+        `https://wa.me/${whatsApp}?text=${message}`;
 
       document.getElementById("call").href = `tel:+${callcenter}`;
+
+      // Helpers
+      function safeFbq() {
+        return typeof window.fbq === "function";
+      }
+      function newEventId() {
+        // used for potential deduplication if you later add Conversions API
+        return (
+          crypto?.randomUUID?.() || String(Date.now()) + Math.random()
+        ).replace(/\./g, "");
+      }
+
+      // Track WhatsApp click (proxy for "sent message")
+      document
+        .getElementById("whatsapp")
+        .addEventListener("click", function () {
+          if (!safeFbq()) return;
+
+          const eventID = newEventId();
+
+          // Standard event (recommended)
+          fbq(
+            "track",
+            "Contact",
+            {
+              channel: "whatsapp",
+              producto: producto,
+              tipo: tipo,
+              id: id,
+            },
+            { eventID },
+          );
+
+          // Or, if you prefer a custom event instead:
+          // fbq("trackCustom", "WhatsAppClick", { producto, tipo, id }, { eventID });
+        });
+
+      // Track Phone click (proxy for "call")
+      document.getElementById("call").addEventListener("click", function () {
+        if (!safeFbq()) return;
+
+        const eventID = newEventId();
+
+        fbq(
+          "track",
+          "Contact",
+          {
+            channel: "phone",
+            producto: producto,
+            tipo: tipo,
+            id: id,
+          },
+          { eventID },
+        );
+
+        // Or custom:
+        // fbq("trackCustom", "PhoneClick", { producto, tipo, id }, { eventID });
+      });
     </script>
   </body>
 </html>

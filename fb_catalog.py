@@ -2,6 +2,7 @@ import argparse
 from datetime import date
 import pymssql
 import csv
+import pandas as pd
 from dataclasses import dataclass
 from typing import Callable, Any, Optional
 from dotenv import load_dotenv
@@ -56,21 +57,6 @@ def safe_str(v, default="") -> str:
         return default
     return str(v)
 
-# ---- IMPORTANT: set these to your real URLs/patterns ----
-# BASE_PRODUCT_URL = "https://tusitio.com/servicios"   # <-- change
-# BASE_IMAGE_URL = "https://tusitio.com/images"        # <-- change (or use a static image)
-
-# def product_link(row: dict) -> str:
-#     # Example: https://tusitio.com/servicios/16
-#     return f"{BASE_PRODUCT_URL}/{row['Id']}"
-
-# def image_link(row: dict) -> str:
-#     # Option A: 1 generic image per Tipo
-#     tipo = safe_str(row.get("Tipo")).strip().lower()
-#     if "negocio" in tipo:
-#         return f"{BASE_IMAGE_URL}/izzi-negocios.png"
-#     return f"{BASE_IMAGE_URL}/izzi-residencial.png"
-
 def build_title(row: dict) -> str:
     # Keep <= 200 chars
     # return f"{safe_str(row.get('Tipo'))} - {safe_str(row.get('Descripcion'))}"[:200]
@@ -87,12 +73,6 @@ def build_description(row: dict) -> str:
         parts.append(f"Incluye ({safe_str(row.get('NoRGU'))}): Internet y Telefonía")
     elif row.get("NoRGU") not in (None, "") and row.get("NoRGU") == 3:
         parts.append(f"Incluye ({safe_str(row.get('NoRGU'))}): Internet, Telefonía y TV")
-    # if row.get("NoRGU") not in (None, ""):
-    #     parts.append(f"RGUs: {safe_str(row.get('NoRGU'))}")
-    # if row.get("ComisionNeta") not in (None, ""):
-    #     parts.append(f"Comisión neta estimada: {money_mxn(row.get('ComisionNeta')).replace(' MXN','')} MXN")
-    # if row.get("MontoAnterior") not in (None, ""):
-    #     parts.append(f"Precio anterior: {money_mxn(row.get('MontoAnterior'))}")
     return " | ".join(parts)[:9999]
 
 BASE_PRODUCT_URL = "https://redporkins.github.io/izzi-contacto/"
@@ -119,6 +99,50 @@ def image_link(row: dict) -> str:
         return f"{BASE_IMAGE_URL}v1768320093/Internet_telefonia_tv_dhueff.png"
     else: 
         return None
+    
+# REGIONS = {
+#     "NORTE": {
+#         "BAJA CALIFORNIA", "BAJA CALIFORNIA SUR", "SONORA", "CHIHUAHUA",
+#         "COAHUILA", "NUEVO LEON", "TAMAULIPAS", "DURANGO", "SINALOA"
+#     },
+#     "CENTRO": {
+#         "AGUASCALIENTES", "GUANAJUATO", "QUERETARO", "SAN LUIS POTOSI",
+#         "JALISCO", "MICHOACAN", "ZACATECAS", "COLIMA", "NAYARIT"
+#     },
+#     "VALLE_MX": {
+#         "CIUDAD DE MEXICO", "ESTADO DE MEXICO", "HIDALGO", "MORELOS", "TLAXCALA", "PUEBLA"
+#     },
+#     "SUR": {
+#         "VERACRUZ", "GUERRERO", "OAXACA", "CHIAPAS", "TABASCO"
+#     },
+#     "PENINSULA": {
+#         "CAMPECHE", "YUCATAN", "QUINTANA ROO"
+#     }
+# }
+
+# def build_region_zip_strings(zips_csv_path: str) -> dict[str, str]:
+#     z = pd.read_csv(zips_csv_path)
+
+#     # normalize columns
+#     z["State"] = z["State"].astype(str).str.upper().str.strip()
+#     z["Zip Code"] = z["Zip Code"].astype(str).str.extract(r"(\d{5})", expand=False).str.zfill(5)
+
+#     region_to_cps: dict[str, str] = {}
+#     for region, states in REGIONS.items():
+#         cps = z[z["State"].isin(states)]["Zip Code"].dropna().unique().tolist()
+#         cps = sorted(set(cps))
+#         region_to_cps[region] = "|".join(cps)
+
+#     return region_to_cps
+        
+# def availability_postal_codes(row: dict) -> str:
+#     # Read the postal codes from the database or another source
+#     zips = pd.read_csv("CSV/states_municipalities_zips.csv")
+
+#     availability_postal_codes = "|".join(
+#         sorted(set(zips["Zip Code"].astype(str).str.zfill(5)))
+#     )
+#     return availability_postal_codes
 
 FB_CATALOG_SCHEMA: dict[str, FieldSpec] = {
     # REQUIRED
@@ -131,6 +155,14 @@ FB_CATALOG_SCHEMA: dict[str, FieldSpec] = {
     "link": FieldSpec(True, mapper=product_link),
     "image_link": FieldSpec(True, mapper=image_link),
     "brand": FieldSpec(True, mapper=lambda r: "izzi"),
+    
+    # LOCALITY via circle (nationwide)
+    "availability_circle_origin.latitude": FieldSpec(True, default="19.4326"),
+    "availability_circle_origin.longitude": FieldSpec(True, default="-99.1332"),
+    "availability_circle_radius_unit": FieldSpec(True, default="km"),
+    "availability_circle_radius": FieldSpec(True, default="2000"),
+
+
 
     # OPTIONAL (you can populate if you want)
     "google_product_category": FieldSpec(False, mapper=lambda r: "Electronics > Communications > Telephony > Phone Services"),
@@ -148,7 +180,7 @@ FB_CATALOG_SCHEMA: dict[str, FieldSpec] = {
     "pattern": FieldSpec(False),
     "shipping": FieldSpec(False),
     "shipping_weight": FieldSpec(False),
-    "[video][0].url]": FieldSpec(False),
+    "[video][0].url]": FieldSpec(False, mapper=lambda r: "https://www.youtube.com/watch?v=PywT6TtlR-g"),
     "[video][0].tag[0]": FieldSpec(False),
     "[gtin]": FieldSpec(False),
     "[product_tags][0]": FieldSpec(False, mapper=lambda r: safe_str(r.get("Tipo"))),
@@ -220,6 +252,37 @@ def fetch_rows_to_csv(conn, directory: str) -> None:
         writer.writerows(formatted_rows)
 
     print(f"Wrote {len(formatted_rows)} Facebook catalog rows to {directory}")
+
+# def fetch_rows_to_csv(conn, directory: str) -> None:
+#     raw_rows = fetch_rows(conn)
+#     print(f"Raw rows: {len(raw_rows)}")
+#     if not raw_rows:
+#         print("No rows to export")
+#         return
+
+#     # Build region CP lists ONCE
+#     region_zip = build_region_zip_strings("CSV/states_municipalities_zips.csv")
+
+#     formatted_rows = []
+#     for r in raw_rows:
+#         for region, cps in region_zip.items():
+#             row_out = format_fb_catalog_row(r)
+
+#             # ✅ make row unique per region
+#             row_out["id"] = f"{row_out['id']}_{region}"
+#             row_out["title"] = f"{row_out['title']} - {region}"
+
+#             # ✅ locality (smaller string per row)
+#             row_out["availability_postal_codes"] = cps
+
+#             formatted_rows.append(row_out)
+
+#     with open(directory, "w", newline="", encoding="utf-8") as f:
+#         writer = csv.DictWriter(f, fieldnames=fb_catalog_header())
+#         writer.writeheader()
+#         writer.writerows(formatted_rows)
+
+#     print(f"Wrote {len(formatted_rows)} Facebook catalog rows to {directory}")
 
     
 def main() -> None:
