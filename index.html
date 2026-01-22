@@ -28,6 +28,119 @@
       );
       fbq("init", "777472967223169");
       fbq("track", "PageView");
+
+      const CSV_URL =
+        "https://raw.githubusercontent.com/USER/REPO/main/path/to/coverage.csv";
+
+      const cpInput = document.getElementById("cpInput");
+      const cpBtn = document.getElementById("cpBtn");
+      const cpResult = document.getElementById("cpResult");
+
+      let coverageSetPromise = null; // cache so we fetch CSV once
+
+      function normalizeCP(value) {
+        // keep only digits, max 5
+        return (value || "").toString().replace(/\D/g, "").slice(0, 5);
+      }
+
+      async function loadCoverageSet() {
+        // Cache: load once per page session
+        if (coverageSetPromise) return coverageSetPromise;
+
+        coverageSetPromise = (async () => {
+          const res = await fetch(CSV_URL, { cache: "no-store" });
+          if (!res.ok)
+            throw new Error("No se pudo descargar el CSV de cobertura.");
+          const text = await res.text();
+
+          // Very simple CSV parsing: assumes CP is in first column OR a column named "cp" / "codigo_postal"
+          const lines = text.split(/\r?\n/).filter(Boolean);
+          if (lines.length === 0) return new Set();
+
+          const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
+          const cpColIndex =
+            header.indexOf("cp") !== -1
+              ? header.indexOf("cp")
+              : header.indexOf("codigo_postal") !== -1
+                ? header.indexOf("codigo_postal")
+                : 0;
+
+          const set = new Set();
+          for (let i = 1; i < lines.length; i++) {
+            // handle possible quoted fields minimally by splitting commas
+            const cols = lines[i].split(",");
+            const cp = normalizeCP(cols[cpColIndex] || "");
+            if (cp.length === 5) set.add(cp);
+          }
+          return set;
+        })();
+
+        return coverageSetPromise;
+      }
+
+      async function checkCoverage() {
+        const cp = normalizeCP(cpInput.value);
+        cpInput.value = cp; // keep it clean in UI
+
+        if (cp.length !== 5) {
+          cpResult.textContent =
+            "Ingresa un código postal válido de 5 dígitos.";
+          cpResult.style.color = "#b45309";
+          return;
+        }
+
+        cpBtn.disabled = true;
+        cpBtn.textContent = "Buscando...";
+        cpResult.textContent = "";
+        cpResult.style.color = "#111";
+
+        try {
+          const coverageSet = await loadCoverageSet();
+          const hasCoverage = coverageSet.has(cp);
+
+          if (hasCoverage) {
+            cpResult.textContent = `✅ Sí hay cobertura en el CP ${cp}.`;
+            cpResult.style.color = "#047857";
+
+            // optional: track on Meta Pixel
+            if (typeof window.fbq === "function") {
+              fbq("trackCustom", "CoverageCheck", {
+                cp,
+                covered: true,
+                producto,
+                tipo,
+                id,
+              });
+            }
+          } else {
+            cpResult.textContent = `❌ Por ahora no encontramos cobertura en el CP ${cp}.`;
+            cpResult.style.color = "#b91c1c";
+
+            if (typeof window.fbq === "function") {
+              fbq("trackCustom", "CoverageCheck", {
+                cp,
+                covered: false,
+                producto,
+                tipo,
+                id,
+              });
+            }
+          }
+        } catch (err) {
+          cpResult.textContent =
+            "Ocurrió un error consultando cobertura. Intenta más tarde.";
+          cpResult.style.color = "#b91c1c";
+          console.error(err);
+        } finally {
+          cpBtn.disabled = false;
+          cpBtn.textContent = "Buscar";
+        }
+      }
+
+      cpBtn.addEventListener("click", checkCoverage);
+      cpInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") checkCoverage();
+      });
     </script>
     <noscript
       ><img
@@ -96,6 +209,47 @@
       <h1>Solicitar información</h1>
       <img src="Images/logoIzzi.png" alt="Logo Izzi" class="logo" />
       <p id="producto">Cargando servicio...</p>
+
+      <div class="coverage">
+        <p style="margin-top: 18px; font-weight: 600">
+          ¿Hay cobertura en tu zona?
+        </p>
+
+        <div style="display: flex; gap: 10px; justify-content: center">
+          <input
+            id="cpInput"
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]{5}"
+            maxlength="5"
+            placeholder="Código postal (5 dígitos)"
+            style="
+              padding: 12px 14px;
+              border-radius: 10px;
+              border: 1px solid #ddd;
+              font-size: 16px;
+              width: 210px;
+            "
+          />
+          <button
+            id="cpBtn"
+            type="button"
+            style="
+              padding: 22px 34px;
+              border-radius: 10px;
+              border: 0;
+              background: #111;
+              color: white;
+              font-size: 16px;
+              cursor: pointer;
+            "
+          >
+            Buscar
+          </button>
+        </div>
+
+        <p id="cpResult" style="margin-top: 12px"></p>
+      </div>
 
       <!-- <a id="whatsapp" class="button" href="#">📲 WhatsApp</a>
       <a id="call" class="button call" href="#">📞 Llamar</a> -->
