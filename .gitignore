@@ -6,9 +6,14 @@
 # Postman JSON metadata files
 JSON/collection_meta.json
 JSON/environment_meta.json
+JSON/collection_hibot.json
+JSON/environment_hibot.json
 
 # CSV sensitive data files
 CSV/filtered_sql_sales_export.csv
 CSV/filtered_tiktok_export.csv
 CSV/tiktok_export.csv
 CSV/states_municipalities_zips.csv
+CSV/filtered_hibot_export.csv
+CSV/format_Auto.csv
+CSV/filtered_sql_sales_export_CANCELADO_NOT_DONE.csv

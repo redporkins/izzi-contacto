@@ -79,7 +79,7 @@ def fetch_rows(conn, fecha_inicio: str, fecha_fin: str, estados: list[str]) -> l
 
 def fetch_rows_to_csv(conn, fecha_inicio: str, fecha_fin: str, estados: list[str], directory: str) -> None:
     rows = fetch_rows(conn, fecha_inicio, fecha_fin, estados)
-    print(f"Rows: {len(rows)}")
+    # print(f"Rows: {len(rows)}")
     with open(directory, "w", newline='', encoding="utf-8") as f:
         if rows:
             writer = csv.DictWriter(f, fieldnames=rows[0].keys())
@@ -91,6 +91,7 @@ def main() -> None:
     load_dotenv()
     
     directory = "CSV/filtered_sql_sales_export.csv"
+    directory1 = "CSV/filtered_sql_sales_export_CANCELADO_NOT_DONE.csv"
 
     conn = pymssql.connect(
         server=os.getenv("SCS_DB01_HOST"),
@@ -102,15 +103,20 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     # python3 get_sql_data.py --from 2024-01-01 --to 2024-01-31 --estado CANCELADO --estado "NOT DONE"
     # If no --estado provided, fetch all estados
-    # python3 get_sql_data.py --from 2024-01-01 --to 2024-01-31
+    # python3 get_sql_data.py --from 2026-01-01 --to 2026-01-31
     ap.add_argument("--from", dest="fecha_inicio", required=True, help="YYYY-MM-DD")
     ap.add_argument("--to", dest="fecha_fin", required=True, help="YYYY-MM-DD")
-    ap.add_argument("--estado", action="append", default=[], help="Repeatable. e.g. --estado CANCELADO --estado 'NOT DONE'")
+    # ap.add_argument("--estado", action="append", default=[], help="Repeatable. e.g. --estado CANCELADO --estado 'NOT DONE'")
     args = ap.parse_args()
     
     try:
-        fetch_rows_to_csv(conn, args.fecha_inicio, args.fecha_fin, args.estado, directory)
-        # do whatever: write CSV, etc.
+        
+        # SQL query for sales from a date range, do not filter by estado
+        fetch_rows_to_csv(conn, args.fecha_inicio, args.fecha_fin, [], directory)
+        
+        # SQL query for sales from a date range, filter by estado CANCELADO and NOT DONE
+        fetch_rows_to_csv(conn, args.fecha_inicio, args.fecha_fin, ["CANCELADO", "NOT DONE"], directory1)
+        
     finally:
         conn.close()
 

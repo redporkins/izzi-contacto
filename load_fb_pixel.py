@@ -106,17 +106,60 @@ def normalize_phone_mx(raw: str) -> str | None:
         return "+" + digits
     return "+" + digits  # fallback
 
-# def send_capi_events(events: list[dict]) -> dict:
-#     url = f"https://graph.facebook.com/{API_VERSION}/{PIXEL_ID}/events"
-#     resp = requests.post(url, params={"access_token": ACCESS_TOKEN}, json={"data": events}, timeout=15)
-#     resp.raise_for_status()
-#     return resp.json()
+import re
 
-# def send_capi_events(events: list[dict], creds: dict) -> dict:
-#     url = f"https://graph.facebook.com/{creds['API_VERSION']}/{creds['PIXEL_ID']}/events"
-#     resp = requests.post(url, params={"access_token": creds["ACCESS_TOKEN"]}, json={"data": events}, timeout=15)
-#     resp.raise_for_status()
-#     return resp.json()
+COMPOUND_LASTNAME_PARTS = {
+    "da", "de", "del", "de la", "de los", "de las",
+    "la", "las", "los",
+    "san", "santa"
+}
+
+def normalize_name(name: str) -> str:
+    # remove emojis / symbols except letters and spaces
+    name = re.sub(r"[^\w\s]", "", name, flags=re.UNICODE)
+    name = re.sub(r"\s+", " ", name).strip()
+    return name.title()
+
+def split_name(full_name: str) -> tuple[str | None, str | None]:
+    if not full_name:
+        return None, None
+
+    name = normalize_name(full_name)
+    tokens = name.split(" ")
+
+    if len(tokens) == 1:
+        return tokens[0], None
+
+    if len(tokens) == 2:
+        return tokens[0], tokens[1]
+
+    # 3 or more tokens
+    first_name = tokens[0]
+    last_name_tokens = []
+
+    i = 1
+    while i < len(tokens):
+        token = tokens[i].lower()
+
+        # handle compound last names
+        if i + 1 < len(tokens):
+            two_word = f"{token} {tokens[i+1].lower()}"
+            if two_word in COMPOUND_LASTNAME_PARTS:
+                last_name_tokens.append(tokens[i])
+                last_name_tokens.append(tokens[i+1])
+                i += 2
+                continue
+
+        if token in COMPOUND_LASTNAME_PARTS:
+            last_name_tokens.append(tokens[i])
+        else:
+            last_name_tokens.append(tokens[i])
+
+        i += 1
+
+    last_name = " ".join(last_name_tokens)
+
+    return first_name, last_name
 
 def send_capi_events(events: list[dict], creds: dict) -> dict:
     url = f"https://graph.facebook.com/{creds['API_VERSION']}/{creds['PIXEL_ID']}/events"
@@ -130,6 +173,17 @@ def send_capi_events(events: list[dict], creds: dict) -> dict:
         json=payload,
         timeout=15
     )
+    
+    if not resp.ok:
+        print("=== META CAPI ERROR ===")
+        print("Status:", resp.status_code)
+    try:
+        print("JSON:", resp.json())
+    except Exception:
+        print("Text:", resp.text)
+    print("=======================")
+
+    
     resp.raise_for_status()
     return resp.json()
 
@@ -154,7 +208,8 @@ def build_purchase_event(row: dict) -> dict | None:
 
     email = (row.get("Email") or "").strip()
     phone = normalize_phone_mx(row.get("Telefono") or row.get("Telefono2") or "")
-    name = (row.get("Nombre") or "").strip()
+    full_name = (row.get("Nombre") or "").strip()
+    fn, ln = split_name(full_name)  # implement simple split
     city = (row.get("DeleoMuni") or "").strip()
     state = (row.get("Estado") or "").strip()
     zipcode = (row.get("CodigoPostal") or "").strip()
@@ -165,8 +220,12 @@ def build_purchase_event(row: dict) -> dict | None:
         user_data["em"] = [sha256_normalized(email)]
     if phone:
         user_data["ph"] = [sha256_normalized(phone)]
-    if name: 
-        user_data["fn"] = [sha256_normalized(name)]
+    # if name: 
+    #     user_data["fn"] = [sha256_normalized(name)]
+    if fn:
+        user_data["fn"] = [sha256_normalized(fn)]
+    if ln:
+        user_data["ln"] = [sha256_normalized(ln)]
     if city:
         user_data["ct"] = [sha256_normalized(city)]
     if state:
@@ -211,7 +270,7 @@ def build_purchase_event(row: dict) -> dict | None:
         },
     }
 
-def build_lead_event_tiktok(row: dict) -> dict | None:
+def build_new_lead_event_tiktok(row: dict) -> dict | None:
     # Implement similar to build_purchase_event if needed
     
     event_time = parse_dt_to_unix(row["Creation time"])
@@ -221,7 +280,8 @@ def build_lead_event_tiktok(row: dict) -> dict | None:
 
     # email = (row.get("Email") or "").strip()
     phone = normalize_phone_mx(row.get("Phone number") or "")
-    name = (row.get("Name") or "").strip()
+    full_name = (row.get("Name") or "").strip()
+    fn, ln = split_name(full_name)  # implement simple split
     lead_id = (row.get("Lead ID") or "").strip()
     # city = (row.get("DeleoMuni") or "").strip()
     # state = (row.get("Estado") or "").strip()
@@ -233,8 +293,12 @@ def build_lead_event_tiktok(row: dict) -> dict | None:
     #     user_data["em"] = [sha256_normalized(email)]
     if phone:
         user_data["ph"] = [sha256_normalized(phone)]
-    if name: 
-        user_data["fn"] = [sha256_normalized(name)]
+    # if name: 
+    #     user_data["fn"] = [sha256_normalized(name)]
+    if fn:
+        user_data["fn"] = [sha256_normalized(fn)]
+    if ln:
+        user_data["ln"] = [sha256_normalized(ln)]
     if lead_id:
         user_data["external_id"] = [sha256_normalized(lead_id)]
     # if city:
@@ -254,7 +318,7 @@ def build_lead_event_tiktok(row: dict) -> dict | None:
     return {
         "event_name": "Lead",
         "event_time": event_time,
-        "action_source": "system_generated",
+        "action_source": "other",
         "event_id": "formFill",
         "user_data": user_data,
         "custom_data": [
@@ -295,6 +359,10 @@ def build_lead_event_tiktok(row: dict) -> dict | None:
                 "value": row.get("lead_source")
             },
             {
+                "name": "lead_status",
+                "value": "new"
+            },
+            {
                 "name": "advertiser_id",
                 "value": row.get("advertiser_id")
             },
@@ -311,8 +379,83 @@ def build_lead_event_tiktok(row: dict) -> dict | None:
                 "value": "TikTok"
             }
         ],
-        "action_source": "other"
     }
+    return None
+
+def build_contact_event_hibot(row: dict) -> dict | None:
+    event_time = parse_dt_to_unix(row["created"])  # <-- use created, not closed
+
+    phone = normalize_phone_mx(row.get("contact_account") or "")
+    full_name = (row.get("contact_name") or "").strip()
+    contact_id = (row.get("contact_id") or "").strip()
+
+    fn, ln = split_name(full_name)  # implement simple split
+
+    user_data = {"country": [sha256_normalized("mx")]}
+
+    if phone:
+        user_data["ph"] = [sha256_normalized(phone)]
+    if fn:
+        user_data["fn"] = [sha256_normalized(fn)]
+    if ln:
+        user_data["ln"] = [sha256_normalized(ln)]
+    if contact_id:
+        user_data["external_id"] = [sha256_normalized(contact_id)]
+
+    event_id = f"contact:{row.get('id')}:{row.get('created')}"
+
+    return {
+        "event_name": "Contact",
+        "event_time": event_time,
+        "action_source": "chat",
+        "event_id": event_id,
+        "user_data": user_data,
+        "custom_data": [
+            {
+                "name": "crm_conversation_id",
+                "value": row.get("id")
+            },
+            {
+                "name": "contact_id",
+                "value": row.get("contact_id")
+            },
+            {
+                "name": "chat_id",
+                "value": row.get("chatId")
+            },
+            {
+                "name": "channel",
+                "value": row.get("typeChannel")
+            },
+            {
+                "name": "channel_id",
+                "value": row.get("channelId")
+            },
+            {
+                "name": "campaign_name",
+                "value": row.get("campaignName")
+            },
+            {
+                "name": "project_name",
+                "value": row.get("projectName")
+            },
+            {
+                "name": "agent_name",
+                "value": row.get("agentName")
+            },
+            {
+                "name": "assignment_type",
+                "value": row.get("assignmentType")
+            },
+            {
+                "name": "conversation_start_date",
+                "value": row.get("created")
+            }
+        ],
+    }
+
+
+def build_qualified_lead_event_hibot(row: dict) -> dict | None:
     return None
 
 def read_csv_events(csv_path: str, event_type: str, creds: dict) -> None:
@@ -328,7 +471,9 @@ def read_csv_events(csv_path: str, event_type: str, creds: dict) -> None:
             if event_type == "Purchase":
                 ev = build_purchase_event(row)
             elif event_type == "Lead":
-                ev = build_lead_event_tiktok(row)
+                ev = build_new_lead_event_tiktok(row)
+            elif event_type == "Contact": 
+                ev = build_contact_event_hibot(row)
             if not ev:
                 skipped += 1
                 continue
@@ -380,41 +525,13 @@ def main(CSVs: dict) -> None:
         else:
             read_csv_events(paths, event_type, creds)
     
-    
-    # batch = []
-    # sent = 0
-    # skipped = 0
-
-    # with open(csv_path, newline="", encoding="utf-8") as f:
-    #     reader = csv.DictReader(f)
-    #     for row in reader:
-    #         ev = build_purchase_event(row)
-    #         if not ev:
-    #             skipped += 1
-    #             continue
-
-    #         batch.append(ev)
-
-    #         # Meta supports batching; keep it reasonable (Meta mentions up to 1,000). :contentReference[oaicite:7]{index=7}
-    #         if len(batch) >= 500:
-    #             # print(send_capi_events(batch))
-    #             print(send_capi_events(batch, creds))
-    #             sent += len(batch)
-    #             batch = []
-
-    # if batch:
-    #     print(send_capi_events(batch, creds))
-    #     sent += len(batch)
-
-    # print(f"Sent: {sent} | Skipped: {skipped}")
-    
     return None
 
 if __name__ == "__main__":
     CSVs = {
-        "Purchase": "CSV/filtered_sql_sales_export.csv",    
+        "Purchase": "CSV/filtered_sql_sales_export.csv",
+        "Contact": "CSV/filtered_hibot_export.csv"    
         # "Lead":  {"tiktok" : "filtered_tiktok_export.csv", "hibot": "filtered_hibot_export.csv"},
-        # "Lead":  "filtered_tiktok_export.csv",
         }
     # main("filtered_sql_export.csv")
     main(CSVs)
