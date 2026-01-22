@@ -28,119 +28,6 @@
       );
       fbq("init", "777472967223169");
       fbq("track", "PageView");
-
-      const CSV_URL =
-        "https://raw.githubusercontent.com/USER/REPO/main/path/to/coverage.csv";
-
-      const cpInput = document.getElementById("cpInput");
-      const cpBtn = document.getElementById("cpBtn");
-      const cpResult = document.getElementById("cpResult");
-
-      let coverageSetPromise = null; // cache so we fetch CSV once
-
-      function normalizeCP(value) {
-        // keep only digits, max 5
-        return (value || "").toString().replace(/\D/g, "").slice(0, 5);
-      }
-
-      async function loadCoverageSet() {
-        // Cache: load once per page session
-        if (coverageSetPromise) return coverageSetPromise;
-
-        coverageSetPromise = (async () => {
-          const res = await fetch(CSV_URL, { cache: "no-store" });
-          if (!res.ok)
-            throw new Error("No se pudo descargar el CSV de cobertura.");
-          const text = await res.text();
-
-          // Very simple CSV parsing: assumes CP is in first column OR a column named "cp" / "codigo_postal"
-          const lines = text.split(/\r?\n/).filter(Boolean);
-          if (lines.length === 0) return new Set();
-
-          const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
-          const cpColIndex =
-            header.indexOf("cp") !== -1
-              ? header.indexOf("cp")
-              : header.indexOf("codigo_postal") !== -1
-                ? header.indexOf("codigo_postal")
-                : 0;
-
-          const set = new Set();
-          for (let i = 1; i < lines.length; i++) {
-            // handle possible quoted fields minimally by splitting commas
-            const cols = lines[i].split(",");
-            const cp = normalizeCP(cols[cpColIndex] || "");
-            if (cp.length === 5) set.add(cp);
-          }
-          return set;
-        })();
-
-        return coverageSetPromise;
-      }
-
-      async function checkCoverage() {
-        const cp = normalizeCP(cpInput.value);
-        cpInput.value = cp; // keep it clean in UI
-
-        if (cp.length !== 5) {
-          cpResult.textContent =
-            "Ingresa un código postal válido de 5 dígitos.";
-          cpResult.style.color = "#b45309";
-          return;
-        }
-
-        cpBtn.disabled = true;
-        cpBtn.textContent = "Buscando...";
-        cpResult.textContent = "";
-        cpResult.style.color = "#111";
-
-        try {
-          const coverageSet = await loadCoverageSet();
-          const hasCoverage = coverageSet.has(cp);
-
-          if (hasCoverage) {
-            cpResult.textContent = `✅ Sí hay cobertura en el CP ${cp}.`;
-            cpResult.style.color = "#047857";
-
-            // optional: track on Meta Pixel
-            if (typeof window.fbq === "function") {
-              fbq("trackCustom", "CoverageCheck", {
-                cp,
-                covered: true,
-                producto,
-                tipo,
-                id,
-              });
-            }
-          } else {
-            cpResult.textContent = `❌ Por ahora no encontramos cobertura en el CP ${cp}.`;
-            cpResult.style.color = "#b91c1c";
-
-            if (typeof window.fbq === "function") {
-              fbq("trackCustom", "CoverageCheck", {
-                cp,
-                covered: false,
-                producto,
-                tipo,
-                id,
-              });
-            }
-          }
-        } catch (err) {
-          cpResult.textContent =
-            "Ocurrió un error consultando cobertura. Intenta más tarde.";
-          cpResult.style.color = "#b91c1c";
-          console.error(err);
-        } finally {
-          cpBtn.disabled = false;
-          cpBtn.textContent = "Buscar";
-        }
-      }
-
-      cpBtn.addEventListener("click", checkCoverage);
-      cpInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") checkCoverage();
-      });
     </script>
     <noscript
       ><img
@@ -202,6 +89,50 @@
         max-width: 80%; /* keeps it responsive */
         height: auto;
       }
+      .coverage {
+        margin-top: 20px;
+      }
+
+      .coverage-title {
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
+
+      .coverage-form {
+        display: flex;
+        flex-direction: column; /* stack vertically */
+        gap: 10px;
+        align-items: center;
+      }
+
+      .coverage-form input,
+      .coverage-form button {
+        width: 100%;
+        max-width: 280px; /* keeps it neat on desktop */
+        box-sizing: border-box;
+      }
+
+      .coverage-form input {
+        padding: 14px 16px;
+        border-radius: 10px;
+        border: 1px solid #ddd;
+        font-size: 16px;
+        text-align: center;
+      }
+
+      .coverage-form button {
+        padding: 14px 16px;
+        border-radius: 10px;
+        border: 0;
+        background: #111;
+        color: #fff;
+        font-size: 16px;
+        cursor: pointer;
+      }
+
+      .coverage-result {
+        margin-top: 12px;
+      }
     </style>
   </head>
   <body>
@@ -211,11 +142,9 @@
       <p id="producto">Cargando servicio...</p>
 
       <div class="coverage">
-        <p style="margin-top: 18px; font-weight: 600">
-          ¿Hay cobertura en tu zona?
-        </p>
+        <p class="coverage-title">¿Hay cobertura en tu zona?</p>
 
-        <div style="display: flex; gap: 10px; justify-content: center">
+        <div class="coverage-form">
           <input
             id="cpInput"
             type="text"
@@ -223,32 +152,12 @@
             pattern="[0-9]{5}"
             maxlength="5"
             placeholder="Código postal (5 dígitos)"
-            style="
-              padding: 12px 14px;
-              border-radius: 10px;
-              border: 1px solid #ddd;
-              font-size: 16px;
-              width: 210px;
-            "
           />
-          <button
-            id="cpBtn"
-            type="button"
-            style="
-              padding: 22px 34px;
-              border-radius: 10px;
-              border: 0;
-              background: #111;
-              color: white;
-              font-size: 16px;
-              cursor: pointer;
-            "
-          >
-            Buscar
-          </button>
+
+          <button id="cpBtn" type="button">Buscar</button>
         </div>
 
-        <p id="cpResult" style="margin-top: 12px"></p>
+        <p id="cpResult" class="coverage-result"></p>
       </div>
 
       <!-- <a id="whatsapp" class="button" href="#">📲 WhatsApp</a>
@@ -342,6 +251,147 @@
 
         // Or custom:
         // fbq("trackCustom", "PhoneClick", { producto, tipo, id }, { eventID });
+      });
+
+      // ===============================
+      // Coverage checker (CSV -> Map CP => {state, municipality})
+      // ===============================
+      const CSV_URL =
+        "https://raw.githubusercontent.com/redporkins/izzi-contacto/main/CSV/states_municipalities_zips.csv";
+
+      const cpInput = document.getElementById("cpInput");
+      const cpBtn = document.getElementById("cpBtn");
+      const cpResult = document.getElementById("cpResult");
+
+      let coverageMapPromise = null;
+
+      function normalizeCP(value) {
+        return (value || "").toString().replace(/\D/g, "").slice(0, 5);
+      }
+
+      // Optional: nicer capitalization (handles AGUASCALIENTES -> Aguascalientes)
+      function toTitleCase(str) {
+        return (str || "")
+          .toLowerCase()
+          .split(" ")
+          .filter(Boolean)
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ");
+      }
+
+      async function loadCoverageMap() {
+        if (coverageMapPromise) return coverageMapPromise;
+
+        coverageMapPromise = (async () => {
+          const res = await fetch(CSV_URL, { cache: "no-store" });
+          if (!res.ok)
+            throw new Error("No se pudo descargar el CSV de cobertura.");
+
+          const text = await res.text();
+          const lines = text.split(/\r?\n/).filter(Boolean);
+          if (lines.length === 0) return new Map();
+
+          const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
+
+          const stateIdx = header.indexOf("state");
+          const muniIdx = header.indexOf("municipality");
+          const zipIdx = header.indexOf("zip code");
+
+          if (stateIdx === -1 || muniIdx === -1 || zipIdx === -1) {
+            throw new Error(
+              `Header inesperado. Detectado: ${header.join(" | ")}`,
+            );
+          }
+
+          const map = new Map();
+
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(",");
+            const cp = normalizeCP(cols[zipIdx]);
+
+            if (cp.length !== 5) continue;
+
+            const stateRaw = (cols[stateIdx] || "").trim();
+            const muniRaw = (cols[muniIdx] || "").trim();
+
+            // If duplicates exist for the same CP, keep the first one (or overwrite—your choice)
+            if (!map.has(cp)) {
+              map.set(cp, {
+                state: toTitleCase(stateRaw),
+                municipality: toTitleCase(muniRaw),
+              });
+            }
+          }
+
+          return map;
+        })();
+
+        return coverageMapPromise;
+      }
+
+      async function checkCoverage() {
+        const cp = normalizeCP(cpInput.value);
+        cpInput.value = cp;
+
+        if (cp.length !== 5) {
+          cpResult.textContent =
+            "Ingresa un código postal válido de 5 dígitos.";
+          cpResult.style.color = "#b45309";
+          return;
+        }
+
+        cpBtn.disabled = true;
+        const originalText = cpBtn.textContent;
+        cpBtn.textContent = "Buscando...";
+        cpResult.textContent = "";
+
+        try {
+          const coverageMap = await loadCoverageMap();
+          const info = coverageMap.get(cp);
+
+          if (info) {
+            cpResult.textContent = `✅ Sí hay cobertura en el CP ${cp} en ${info.municipality}, ${info.state}.`;
+            cpResult.style.color = "#047857";
+
+            if (typeof window.fbq === "function") {
+              fbq("trackCustom", "CoverageCheck", {
+                cp,
+                covered: true,
+                state: info.state,
+                municipality: info.municipality,
+                producto,
+                tipo,
+                id,
+              });
+            }
+          } else {
+            cpResult.textContent = `❌ Por ahora no encontramos cobertura en el CP ${cp}.`;
+            cpResult.style.color = "#b91c1c";
+
+            if (typeof window.fbq === "function") {
+              fbq("trackCustom", "CoverageCheck", {
+                cp,
+                covered: false,
+                producto,
+                tipo,
+                id,
+              });
+            }
+          }
+        } catch (err) {
+          console.error(err);
+          cpResult.textContent =
+            "Ocurrió un error consultando cobertura. Revisa la consola (F12).";
+          cpResult.style.color = "#b91c1c";
+        } finally {
+          cpBtn.disabled = false;
+          cpBtn.textContent = originalText;
+        }
+      }
+
+      cpBtn.addEventListener("click", checkCoverage);
+      cpInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") checkCoverage();
       });
     </script>
   </body>
