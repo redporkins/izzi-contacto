@@ -350,7 +350,7 @@
           const info = coverageMap.get(cp);
 
           if (info) {
-            cpResult.textContent = `✅ Sí hay cobertura en el CP ${cp} en ${info.municipality}, ${info.state}.`;
+            cpResult.textContent = `✅ Cobertura validada en el CP ${cp} ubicado en ${info.municipality}, ${info.state}.`;
             cpResult.style.color = "#047857";
 
             if (typeof window.fbq === "function") {
