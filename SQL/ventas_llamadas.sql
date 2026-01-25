@@ -1,5 +1,8 @@
-SELECT 
-* 
+SELECT  
+	vr.Costo,
+	vr.NoRGU,
+	vr.CreatorUserId,
+	vr.CreationTime
 -- SUM(vr.Costo) AS MontoVentas,
 -- SUM(vr.NoRGU) AS CantidadRGU,
 -- COUNT(vr.CreatorUserId) AS RecuentoVentas

@@ -99,11 +99,11 @@ python3 get_sql_data.py --from "$FROM_DATE" --to "$TO_DATE"
 echo "3) Running get_hibot_data.py..."
 python3 get_hibot_data.py --from "$FROM" --to "$TO"
 
-# echo "4) Running load_vicidial.py"
-# python3 load_vicidial.py
+echo "4) Running load_vicidial.py"
+python3 load_vicidial.py
 
-echo "5) Running load_fb_pixel.py..."
-python3 fb_pixel.py
+# echo "5) Running load_fb_pixel.py..."
+# python3 load_fb_pixel.py
 
 echo ""
 echo "Done."
